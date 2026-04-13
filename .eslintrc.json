@@ -1,13 +1,3 @@
 {
-  "root": true,
-  "extends": ["eslint:recommended", "prettier"],
-  "parserOptions": {
-    "ecmaVersion": 2022,
-    "sourceType": "module"
-  },
-  "env": {
-    "node": true,
-    "es2022": true
-  },
-  "ignorePatterns": ["dist", ".next", ".turbo", "node_modules", "*.config.*"]
+  "extends": ["next/core-web-vitals"]
 }

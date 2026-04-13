@@ -1,109 +1,69 @@
-# Tracker — Personal Training MVP
+# Tracker — Personal training / wellness / nutrition
 
-Monorepo (Next.js 14 PWA + NestJS/Fastify + Prisma/Postgres + Redis + MinIO) that ingests
-activities from Strava (Coros → Strava → this app) and renders map, HR/power/altitude
-charts, and laps. Single seed user. Foundation for future wellness / nutrition / coach IA.
+Single-user Next.js 14 PWA para registrar entrenamientos, sueño y comida a mano.
+Sin backend: los datos se guardan en localStorage del navegador. Despliegue directo
+a Vercel como web estática + PWA.
 
-## Requirements
+## Stack
 
-- Node.js 20+
-- pnpm 9+
-- Docker (Compose v2)
+- Next.js 14 App Router + TypeScript strict
+- Tailwind + shadcn/ui (primitives: button, card, input, label, textarea, select,
+  dialog, badge, separator, skeleton)
+- Serwist (PWA)
+- Persistencia: `localStorage`
 
-## Setup
-
-```bash
-cp .env.example .env
-# Generate 32-byte encryption key:
-openssl rand -hex 32
-# paste into ENCRYPTION_KEY in .env
-
-pnpm install
-pnpm infra:up                 # postgres + redis + minio + bucket init
-pnpm db:migrate               # creates schema (migration: init_mvp)
-pnpm db:seed                  # creates seed user from SEED_USER_EMAIL/NAME
-pnpm dev                      # starts web :3000 and api :3001 in parallel
-```
-
-### Strava app
-
-Create an app at <https://www.strava.com/settings/api>:
-
-- **Authorization Callback Domain**: `localhost`
-- Copy **Client ID** and **Client Secret** into `.env` as `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`.
-- Pick a random string for `STRAVA_VERIFY_TOKEN` (any opaque value).
-
-Then from the running web app:
-
-1. Open <http://localhost:3000/settings>.
-2. Click **Conectar Strava** → complete OAuth → return with toast "Strava conectada".
-3. Click **Sincronizar últimas 30** → BullMQ jobs pull activities, streams, and laps.
-4. Browse them at <http://localhost:3000/activities>.
-
-### Optional: Strava webhooks
-
-Webhooks require a publicly reachable callback URL. Use a tunnel:
+## Uso local
 
 ```bash
-# in a separate terminal
-ngrok http 3001
-# or
-cloudflared tunnel --url http://localhost:3001
+npm install
+npm run dev     # http://localhost:3000
 ```
 
-Put the public URL (with `/api/integrations/strava/webhook` appended) into
-`.env` as `STRAVA_WEBHOOK_CALLBACK_URL`, then register once:
+## Deploy en Vercel
 
-```bash
-pnpm tsx scripts/strava-webhook-register.ts
-```
+1. Conecta el repo en Vercel → **Import Project**.
+2. Framework: **Next.js** (auto-detectado).
+3. Root Directory: `/` (raíz del repo).
+4. Install command: `npm install`.
+5. Build command: `npm run build`.
+6. No hace falta ninguna variable de entorno.
+7. Deploy.
 
-Strava will hit `GET /api/integrations/strava/webhook` to verify (validated against
-`STRAVA_VERIFY_TOKEN`) and subsequent `POST`s will enqueue sync jobs.
+Tras el primer build, cualquier push a `claude/workout-tracking-mvp-qPHEM` (o el
+branch que configures) redeploya.
 
-## URLs
+## Qué hay
 
-- Web: <http://localhost:3000>
-- API: <http://localhost:3001/api>
-- Health: <http://localhost:3001/api/health>
-- MinIO console: <http://localhost:9001> (admin `minioadmin` / `minioadmin`)
-- Prisma Studio: `pnpm db:studio`
+- **Home** (`/`): resumen de hoy — wellness, entrenos, nutrición + últimos 5 entrenos.
+- **Entrenamientos** (`/training`): CRUD con deporte, duración, distancia, D+, HR, RPE, notas.
+- **Wellness** (`/wellness`): una entrada por día (upsert por fecha) con sueño, ánimo,
+  energía, agujetas, peso, HR reposo, notas.
+- **Nutrición** (`/nutrition`): comidas agrupadas por día y ordenadas por tipo
+  (desayuno/comida/snack/cena), con kcal y macros.
+- **Coach** (`/coach`): placeholder.
+- **Settings** (`/settings`): nombre, exportar/importar JSON, borrar todo.
 
-## Scripts
+## Datos
 
-| command             | description                                      |
-| ------------------- | ------------------------------------------------ |
-| `pnpm dev`          | turbo — web (3000) + api (3001) in parallel      |
-| `pnpm build`        | turbo build of all packages                      |
-| `pnpm lint`         | turbo lint                                       |
-| `pnpm typecheck`    | turbo typecheck                                  |
-| `pnpm infra:up`     | docker compose up postgres/redis/minio           |
-| `pnpm infra:down`   | stop services                                    |
-| `pnpm infra:reset`  | stop and **delete** all volumes                  |
-| `pnpm db:migrate`   | Prisma migrate dev (name `init_mvp` on first)    |
-| `pnpm db:studio`    | Prisma Studio                                    |
-| `pnpm db:seed`      | idempotent seed user                             |
-
-## Layout
+Todo se guarda en `localStorage` bajo las claves:
 
 ```
-apps/web                      Next.js 14 App Router + Tailwind + shadcn/ui + Serwist PWA
-apps/api                      NestJS + Fastify + BullMQ + Prisma
-packages/domain               Sport enum + shared types
-packages/db                   Prisma schema, client, seed
-packages/integrations/strava  Strava client + mappers
+tracker.v1.training
+tracker.v1.wellness
+tracker.v1.nutrition
+tracker.v1.profile
 ```
 
-## What this MVP does NOT do
+Si cambias de dispositivo o de navegador: **Settings → Exportar JSON** y luego
+**Importar** en el otro.
 
-Better-Auth, custom TSS/zones/CTL/ATL/TSB, wellness/nutrition/gym/planning/coach logic
-(only nav placeholders), Coros API, `.fit` raw storage (Strava does not expose it without
-scope `upload` — `Activity.rawFitKey` stays `null`, TODO for post-MVP), tests, dark mode,
-i18n, rate limiting / helmet. See the spec for the full non-goal list.
+## Limitaciones conocidas
 
-## Notes
+- Sin sincronización multi-dispositivo (está en el roadmap).
+- Sin Strava / Coros por ahora (el MVP local+backend original vive en el historial).
+- Sin autenticación (app personal, 1 usuario).
 
-- Auth is mocked via an `x-user-id` header middleware that falls back to the seed
-  user. See `// TODO` in `apps/api/src/common/auth.middleware.ts`.
-- Strava tokens are stored AES-256-GCM encrypted (`ivHex:tagHex:cipherHex`).
-- Strava only reliably returns HR / power / calories; TSS & IF are stored `null`.
+## PWA
+
+Instálala desde Chrome/Edge (icono "Instalar" en la barra URL) para usarla como app
+standalone con su propio icono y pantalla.
