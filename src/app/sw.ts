@@ -5,16 +5,16 @@ import { Serwist } from 'serwist';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
-    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+    __SW_MANIFEST: (PrecacheEntry | string)[];
   }
 }
 
 declare const self: ServiceWorkerGlobalScope & {
-  __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  __SW_MANIFEST: (PrecacheEntry | string)[];
 };
 
 const serwist = new Serwist({
-  ...(self.__SW_MANIFEST ? { precacheEntries: self.__SW_MANIFEST } : {}),
+  precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
